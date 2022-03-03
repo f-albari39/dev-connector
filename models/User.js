@@ -22,4 +22,4 @@ const UserSchema = new mongoose.Schema({
   },
 });
 
-module.exports = User = mongoose.model("orang", UserSchema);
+module.exports = User = mongoose.model("user", UserSchema);
