@@ -105,4 +105,120 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
+// @route   PUT api/posts/like/:id
+// @desc    Like a post
+// @access  Private
+
+router.put("/like/:id", auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (
+      post.likes.filter((like) => like.user.toString() === req.user.id).length >
+      0
+    ) {
+      return res.status(400).json({ msg: "Post already liked" });
+    }
+
+    post.likes.unshift({ user: req.user.id });
+
+    await post.save();
+
+    res.json(post.likes);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ msg: "Server Error" });
+  }
+});
+
+// @route   PUT api/posts/unlike/:id
+// @desc    Unlike a post
+// @access  Private
+
+router.put("/unlike/:id", auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (
+      post.likes.filter((like) => like.user.toString() === req.user.id)
+        .length === 0
+    ) {
+      return res.status(400).json({ msg: "Post has not yet been liked" });
+    }
+
+    const removeIndex = post.likes
+      .map((like) => like.user.toString())
+      .indexOf(req.user.id);
+
+    post.likes.splice(removeIndex, 1);
+
+    await post.save();
+
+    res.json(post.likes);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ msg: "Server Error" });
+  }
+});
+
+// @route   POST api/posts/comment/:id
+// @desc    Comment a post
+// @access  Private
+
+router.post(
+  "/comment/:id",
+  [auth, [check("text").not().isEmpty()]],
+  async (req, res) => {
+    try {
+      const post = await Post.findById(req.params.id);
+      const user = await User.findById(req.user.id).select("-password");
+
+      const newComment = {
+        user: req.user.id,
+        name: user.name,
+        text: req.body.text,
+        avatar: user.avatar,
+      };
+
+      post.comments.unshift(newComment);
+
+      await post.save();
+
+      res.json(post.comments);
+    } catch (error) {
+      console.error(error.message);
+      res.status(500).json({ msg: "Server Error" });
+    }
+  }
+);
+
+// @route   DELETE api/posts/comment/:id/:comment_id
+// @desc    Delete a comment
+// @access  Private
+
+router.delete("/comment/:id/:comment_id", auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    const commentIndex = post.comments
+      .map((comment) => comment.id.toString())
+      .indexOf(req.params.comment_id);
+
+    if (commentIndex) {
+      return res.status(404).json({ msg: "Comment not find" });
+    }
+
+    if (post.comments[commentIndex].user.toString() !== req.user.id) {
+      return res.status(401).json({ msg: "User not authorized" });
+    }
+
+    post.comments.splice(commentIndex, 1);
+
+    await post.save();
+
+    res.json(post.comments);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ msg: "Server Error" });
+  }
+});
+
 module.exports = router;
